@@ -16,6 +16,7 @@
 
 package com.google.android.apps.dashclock.configuration;
 
+import com.google.android.apps.dashclock.Utils;
 import com.google.android.apps.dashclock.ui.PagerPositionStrip;
 
 import net.nurik.roman.dashclock.R;
@@ -43,7 +44,7 @@ import java.util.Map;
  * ConfigurationActivity}.
  */
 public class ConfigureAppearanceFragment extends Fragment {
-    private static final int AUTO_HIDE_DELAY_MILLIS = 1000;
+    private static final int AUTO_HIDE_DELAY_MILLIS = 1 * Utils.MINUTES_MILLIS;
 
     private Handler mHandler = new Handler();
 
@@ -65,9 +66,6 @@ public class ConfigureAppearanceFragment extends Fragment {
 
         ViewGroup rootView = (ViewGroup) inflater.inflate(
                 R.layout.fragment_configure_appearance, container, false);
-
-        rootView.findViewById(R.id.container).setBackgroundColor(
-                AppearanceConfig.getHomescreenBackgroundColor(getActivity()));
 
         mCurrentStyleNames.put(
                 AppearanceConfig.PREF_STYLE_TIME,

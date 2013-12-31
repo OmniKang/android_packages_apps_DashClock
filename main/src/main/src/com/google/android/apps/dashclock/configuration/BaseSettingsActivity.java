@@ -45,6 +45,10 @@ public abstract class BaseSettingsActivity extends PreferenceActivity {
         setupSimplePreferencesScreen();
     }
 
+    protected boolean isValidFragment(String fragmentName) {
+        return false;
+    }
+
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {

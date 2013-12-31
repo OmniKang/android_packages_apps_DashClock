@@ -16,8 +16,6 @@
 
 package com.google.android.apps.dashclock.configuration;
 
-import net.nurik.roman.dashclock.R;
-
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -28,17 +26,21 @@ import android.content.res.TypedArray;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.LayerDrawable;
 import android.os.Bundle;
 import android.preference.Preference;
 import android.util.AttributeSet;
+import android.util.DisplayMetrics;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.*;
+import android.widget.GridLayout;
+import android.widget.ImageView;
+import android.widget.TextView;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.google.android.apps.dashclock.Utils;
+
+import net.nurik.roman.dashclock.R;
 
 /**
  * A preference that allows the user to choose an application or shortcut.
@@ -93,7 +95,7 @@ public class ColorPreference extends Preference {
     protected void onBindView(View view) {
         super.onBindView(view);
         mPreviewView = view.findViewById(R.id.color_view);
-        setColorViewValue(mPreviewView, mValue);
+        setColorViewValue(mPreviewView, mValue, false);
     }
 
     public void setValue(int value) {
@@ -150,8 +152,7 @@ public class ColorPreference extends Preference {
 
     public static class ColorDialogFragment extends DialogFragment {
         private ColorPreference mPreference;
-        private ColorGridAdapter mAdapter;
-        private GridView mColorGrid;
+        private GridLayout mColorGrid;
 
         public ColorDialogFragment() {
         }
@@ -162,13 +163,13 @@ public class ColorPreference extends Preference {
 
         public void setPreference(ColorPreference preference) {
             mPreference = preference;
-            tryBindLists();
+            repopulateItems();
         }
 
         @Override
         public void onAttach(Activity activity) {
             super.onAttach(activity);
-            tryBindLists();
+            repopulateItems();
         }
 
         @Override
@@ -176,87 +177,80 @@ public class ColorPreference extends Preference {
             LayoutInflater layoutInflater = LayoutInflater.from(getActivity());
             View rootView = layoutInflater.inflate(R.layout.dialog_colors, null);
 
-            mColorGrid = (GridView) rootView.findViewById(R.id.color_grid);
-            mColorGrid.setNumColumns(mPreference.mNumColumns);
-            mColorGrid.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                @Override
-                public void onItemClick(AdapterView<?> listView, View view,
-                        int position, long itemId) {
-                    mPreference.setValue(mAdapter.getItem(position));
-                    dismiss();
-                }
-            });
-
-            tryBindLists();
+            mColorGrid = (GridLayout) rootView.findViewById(R.id.color_grid);
+            mColorGrid.setColumnCount(mPreference.mNumColumns);
+            repopulateItems();
 
             return new AlertDialog.Builder(getActivity())
                     .setView(rootView)
                     .create();
         }
 
-        private void tryBindLists() {
-            if (mPreference == null) {
+        private void repopulateItems() {
+            if (mPreference == null || mColorGrid == null) {
                 return;
             }
 
-            if (isAdded() && mAdapter == null) {
-                mAdapter = new ColorGridAdapter();
+            Context context = mColorGrid.getContext();
+            mColorGrid.removeAllViews();
+            for (final int color : mPreference.mColorChoices) {
+                View itemView = LayoutInflater.from(context)
+                            .inflate(R.layout.grid_item_color, mColorGrid, false);
+
+                setColorViewValue(itemView.findViewById(R.id.color_view), color,
+                        color == mPreference.getValue());
+                itemView.setClickable(true);
+                itemView.setFocusable(true);
+                itemView.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        mPreference.setValue(color);
+                        dismiss();
+                    }
+                });
+
+                mColorGrid.addView(itemView);
             }
 
-            if (mAdapter != null && mColorGrid != null) {
-                mAdapter.setSelectedColor(mPreference.getValue());
-                mColorGrid.setAdapter(mAdapter);
-            }
+            sizeDialog();
         }
 
-        private class ColorGridAdapter extends BaseAdapter {
-            private List<Integer> mChoices = new ArrayList<Integer>();
-            private int mSelectedColor;
+        @Override
+        public void onStart() {
+            super.onStart();
+            sizeDialog();
+        }
 
-            private ColorGridAdapter() {
-                for (int color : mPreference.mColorChoices) {
-                    mChoices.add(color);
-                }
+        private void sizeDialog() {
+            if (mPreference == null || mColorGrid == null) {
+                return;
             }
 
-            @Override
-            public int getCount() {
-                return mChoices.size();
+            Dialog dialog = getDialog();
+            if (dialog == null) {
+                return;
             }
 
-            @Override
-            public Integer getItem(int position) {
-                return mChoices.get(position);
-            }
+            final Resources res = mColorGrid.getContext().getResources();
+            DisplayMetrics dm = res.getDisplayMetrics();
 
-            @Override
-            public long getItemId(int position) {
-                return mChoices.get(position);
-            }
+            // Can't use Integer.MAX_VALUE here (weird issue observed otherwise on 4.2)
+            mColorGrid.measure(
+                    View.MeasureSpec.makeMeasureSpec(dm.widthPixels, View.MeasureSpec.AT_MOST),
+                    View.MeasureSpec.makeMeasureSpec(dm.heightPixels, View.MeasureSpec.AT_MOST));
+            int width = mColorGrid.getMeasuredWidth();
+            int height = mColorGrid.getMeasuredHeight();
 
-            @Override
-            public View getView(int position, View convertView, ViewGroup container) {
-                if (convertView == null) {
-                    convertView = LayoutInflater.from(getActivity())
-                            .inflate(mPreference.mItemLayoutId, container, false);
-                }
+            int extraPadding = res.getDimensionPixelSize(R.dimen.color_grid_extra_padding);
 
-                int color = getItem(position);
-                setColorViewValue(convertView.findViewById(R.id.color_view), color);
-                convertView.setBackgroundColor(color == mSelectedColor
-                        ? 0x6633b5e5 : 0);
+            width += extraPadding;
+            height += extraPadding;
 
-                return convertView;
-            }
-
-            public void setSelectedColor(int selectedColor) {
-                mSelectedColor = selectedColor;
-                notifyDataSetChanged();
-            }
+            dialog.getWindow().setLayout(width, height);
         }
     }
 
-    private static void setColorViewValue(View view, int color) {
+    private static void setColorViewValue(View view, int color, boolean selected) {
         if (view instanceof ImageView) {
             ImageView imageView = (ImageView) view;
             Resources res = imageView.getContext().getResources();
@@ -280,7 +274,18 @@ public class ColorPreference extends Preference {
             colorChoiceDrawable.setColor(color);
             colorChoiceDrawable.setStroke((int) TypedValue.applyDimension(
                     TypedValue.COMPLEX_UNIT_DIP, 1, res.getDisplayMetrics()), darkenedColor);
-            imageView.setImageDrawable(colorChoiceDrawable);
+
+            Drawable drawable = colorChoiceDrawable;
+            if (selected) {
+                drawable = new LayerDrawable(new Drawable[]{
+                        colorChoiceDrawable,
+                        res.getDrawable(Utils.isColorDark(color)
+                                ? R.drawable.checkmark_white
+                                : R.drawable.checkmark_black)
+                });
+            }
+
+            imageView.setImageDrawable(drawable);
 
         } else if (view instanceof TextView) {
             ((TextView) view).setTextColor(color);

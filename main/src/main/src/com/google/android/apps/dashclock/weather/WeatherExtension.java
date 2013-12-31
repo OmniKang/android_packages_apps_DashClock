@@ -41,13 +41,24 @@ import android.os.SystemClock;
 import android.preference.PreferenceManager;
 import android.text.TextUtils;
 
+import net.nurik.roman.dashclock.R;
+
+import java.text.SimpleDateFormat;
+
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Locale;
 
 import static com.google.android.apps.dashclock.LogUtils.LOGD;
 import static com.google.android.apps.dashclock.LogUtils.LOGE;
 import static com.google.android.apps.dashclock.LogUtils.LOGW;
-import static com.google.android.apps.dashclock.weather.YahooWeatherApiClient.*;
+import static com.google.android.apps.dashclock.Utils.MINUTES_MILLIS;
+import static com.google.android.apps.dashclock.Utils.MILLIS_NANOS;
+import static com.google.android.apps.dashclock.Utils.SECONDS_MILLIS;
+import static com.google.android.apps.dashclock.weather.YahooWeatherApiClient.LocationInfo;
+import static com.google.android.apps.dashclock.weather.YahooWeatherApiClient.getLocationInfo;
+import static com.google.android.apps.dashclock.weather.YahooWeatherApiClient.getWeatherForLocationInfo;
+import static com.google.android.apps.dashclock.weather.YahooWeatherApiClient.setWeatherUnits;
 
 /**
  * A local weather and forecast extension.
@@ -67,13 +78,16 @@ public class WeatherExtension extends DashClockExtension {
     public static final String STATE_WEATHER_LAST_UPDATE_ELAPSED_MILLIS
             = "state_weather_last_update_elapsed_millis";
 
-    private static final int UPDATE_THROTTLE_MILLIS = 10 * 3600000; // At least 10 min b/w updates
+    // At least 10 min b/w updates
+    private static final int UPDATE_THROTTLE_MILLIS = 10 * MINUTES_MILLIS;
 
-    private static final long STALE_LOCATION_NANOS = 10l * 60000000000l; // 10 minutes
+    private static final long STALE_LOCATION_NANOS = 10 * MINUTES_MILLIS * MILLIS_NANOS;
 
-    private static final int INITIAL_BACKOFF_MILLIS = 30000; // 30 seconds for first error retry
+    // 30 seconds for first error retry
+    private static final int INITIAL_BACKOFF_MILLIS = 30 * SECONDS_MILLIS;
 
-    private static final int LOCATION_TIMEOUT_MILLIS = 60000; // 60 sec timeout for location attempt
+    // 60 sec timeout for location attempt
+    private static final int LOCATION_TIMEOUT_MILLIS = 60 * SECONDS_MILLIS;
 
     private static final Criteria sLocationCriteria;
 
@@ -105,7 +119,7 @@ public class WeatherExtension extends DashClockExtension {
                 ? lastBackoffMillis * 2
                 : INITIAL_BACKOFF_MILLIS;
         sp.edit().putInt(STATE_WEATHER_LAST_BACKOFF_MILLIS, backoffMillis).apply();
-        LOGD(TAG, "Scheduling weather retry in " + (backoffMillis / 1000) + " second(s)");
+        LOGD(TAG, "Scheduling weather retry in " + (backoffMillis / SECONDS_MILLIS) + " second(s)");
         AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);
         am.set(AlarmManager.ELAPSED_REALTIME,
                 SystemClock.elapsedRealtime() + backoffMillis,
